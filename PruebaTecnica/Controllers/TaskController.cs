@@ -1,9 +1,12 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PruebaTecnica.DB;
 using PruebaTecnica.Dtos;
 using PruebaTecnica.Entities;
+using PruebaTecnica.Services;
+using PruebaTecnica.Utils;
 
 namespace PruebaTecnica.Controllers
 {
@@ -13,36 +16,43 @@ namespace PruebaTecnica.Controllers
     {
         private readonly ApplicationDbContext context;
         private readonly IMapper mapper;
+        private readonly IServiceUser servicesUsers;
 
-        public TaskController(ApplicationDbContext context, IMapper mapper)
+        public TaskController(ApplicationDbContext context, IMapper mapper, IServiceUser servicesUsers)
         {
             this.context = context;
             this.mapper = mapper;
+            this.servicesUsers = servicesUsers;
         }
 
-        [HttpGet(Name = "Listar Tareas")]
-        public async Task<IEnumerable<MaintenanceTaskDto>> Get()
+        [HttpGet(Name = "Listar Todas Tareas")]
+        [Authorize(Policy = "isadmin")]
+        public async Task<IEnumerable<MaintenanceTaskDto>> Get([FromQuery] PaginationDTO paginationDTO)
         {
-            var tasks = await context.MaintenanceTasks
-                .ToListAsync();
+            var queryable = context.MaintenanceTasks.AsQueryable();
+            await HttpContext.InsertPaginationHeader(queryable);
+            var tasks = await queryable.OrderBy(x => x.Id).Paginate(paginationDTO).ToListAsync();
             var taskDto = mapper.Map<IEnumerable<MaintenanceTaskDto>>(tasks);
             return taskDto;
         }
 
-        [HttpGet("{id:int}", Name = "Obtener Tarea")]
-        public async Task<ActionResult<MaintenanceTaskDto>> Get(int id)
+        [HttpGet("me",Name = "Obtener Tareas de usuario")]
+        public async Task<IEnumerable<MaintenanceTaskDto>> Get()
         {
-            var task = await context.MaintenanceTasks
-                .FirstOrDefaultAsync(x => x.Id == id);
-            if (task is null)
+            var usuario = await servicesUsers.ObtenerUsuario();
+            if (usuario is null)
             {
-                return NotFound();
+                return [];
             }
-            var taskDto = mapper.Map<MaintenanceTaskDto>(task);
-            return taskDto;
+            var tasks = await context.MaintenanceTasks
+            .Where(x => x.UserId == usuario.Id)
+            .ToListAsync();
+            var tasksDto = mapper.Map<IEnumerable<MaintenanceTaskDto>>(tasks);
+            return tasksDto;
         }
 
         [HttpPost]
+        //[Authorize(Policy = "isadmin")]
         public async Task<ActionResult> Post(MaintenanceTaskCreateDto taskCreation)
         {
             var task = mapper.Map<MaintenanceTask>(taskCreation);
