@@ -30,8 +30,7 @@ Este es un proyecto **API RESTful** desarrollado en **.NET 8** utilizando **Enti
 ### 1️⃣ Clonar el Repositorio
 
 ```bash
-git clone https://github.com/usuario/proyecto-dotnet.git
-cd proyecto-dotnet
+https://github.com/mddx56/PruebaTecnica.git
 ```
 
 ### 2️⃣ Configurar la Base de Datos
